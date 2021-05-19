@@ -39,7 +39,7 @@ class DockerStats(object):
 def collect_stats(cont_stats: DockerStats):
     socket_connection = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     socket_connection.connect(SOCKET_PATH)
-
+    socket_connection.settimeout(1.25)
     conn_string = cont_stats.connection_string
     csv_writer = cont_stats.file_descriptor
     
@@ -47,16 +47,28 @@ def collect_stats(cont_stats: DockerStats):
 
         socket_connection.send(conn_string)
         complete_string = b""
-        for i in range(2):
-            response_data = socket_connection.recv(4096)
-            print(response_data)
-            complete_string = complete_string + response_data
-            # content_lines = response_data.decode().split('\r\n')
-            # print(complete_string)
+
+        while True:
+            try:
+                response_data = socket_connection.recv(4096)
+                if b'\r\n\r\n' in response_data:
+                    complete_string = complete_string + response_data
+                    break
+                complete_string = complete_string + response_data
+            except socket.timeout:
+                break
+                
+        print(complete_string)
+        # for i in range(2):
+        #     response_data = socket_connection.recv(4096)
+        #     complete_string = complete_string + response_data
+        #     # content_lines = response_data.decode().split('\r\n')
+        #     print(complete_string)
 
         # print(complete_string)
         
         content_lines = complete_string.decode().split('\r\n')
+        # print(content_lines)
         version_dict = json.loads(content_lines[10])
         
         timestamp = version_dict['read']
@@ -83,7 +95,7 @@ def collect_stats(cont_stats: DockerStats):
 
 if __name__ == "__main__":
     container_name = 'mlinfer-nb'
-    file_name = 'mlinfer-nb_new_run.csv'
+    file_name = './dataset/mlinfer-nb_eg.csv'
     container_stats = DockerStats(container_name=container_name, file_path=file_name)
 
     collect_stats(container_stats)
