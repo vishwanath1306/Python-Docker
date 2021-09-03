@@ -5,7 +5,7 @@ import os
 import csv
 
 SOCKET_PATH = '/var/run/docker.sock'
-HEADERS = ['timestamp', 'mem_percentage', 'cpu_percentage', 'num_pid']
+HEADERS = ['timestamp', 'mem_percentage', 'cpu_percentage', 'num_pid', 'num_cores']
 
 
 class DockerStats(object):
@@ -51,21 +51,21 @@ def collect_stats(cont_stats: DockerStats):
         while True:
             try:
                 response_data = socket_connection.recv(4096)
-                if b'\r\n\r\n' in response_data:
+                if b'\r\n\r\n' in response_data[-10:]:
                     complete_string = complete_string + response_data
                     break
                 complete_string = complete_string + response_data
             except socket.timeout:
                 break
                 
-        print(complete_string)
+        # print(complete_string)
         # for i in range(2):
         #     response_data = socket_connection.recv(4096)
         #     complete_string = complete_string + response_data
         #     # content_lines = response_data.decode().split('\r\n')
         #     print(complete_string)
 
-        # print(complete_string)
+        print(complete_string)
         
         content_lines = complete_string.decode().split('\r\n')
         # print(content_lines)
@@ -89,13 +89,19 @@ def collect_stats(cont_stats: DockerStats):
         # PID Stats 
 
         num_pid = version_dict["pids_stats"]["current"]
-        csv_writer.writerow([timestamp, mem_percentage, cpu_percentage, num_pid])
+        
+        # Number of cores used
+
+        num_cores = len(version_dict["cpu_stats"]["cpu_usage"]["percpu_usage"]) - version_dict["cpu_stats"]["cpu_usage"]["percpu_usage"].count(0)
+        
+        csv_writer.writerow([timestamp, mem_percentage, cpu_percentage, num_pid, num_cores])
+
         time.sleep(1)
         
 
 if __name__ == "__main__":
-    container_name = 'mlinfer-nb'
-    file_name = './dataset/mlinfer-nb_eg.csv'
+    container_name = 'uniqueid-ttd'
+    file_name = './dataset/uniqueid_ttd_1024_1.csv'
     container_stats = DockerStats(container_name=container_name, file_path=file_name)
 
     collect_stats(container_stats)
